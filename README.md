@@ -1,5 +1,5 @@
 # socket-chat
-基于Java Socket Api通过控制台输入模拟点对点以及广播式通信。
+基于Java Socket Api通过控制台模拟点对点以及广播式通信。
 # 快速开始
 1. 启动服务端  
 运行[Server](https://github.com/Allurx/socket-chat/blob/master/socket-server/src/main/java/red/zyc/socket/server/Server.java)的main方法启动服务端。服务端默认限制最多3个客户端连接，
