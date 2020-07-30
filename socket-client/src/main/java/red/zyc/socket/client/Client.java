@@ -19,6 +19,16 @@ import java.util.concurrent.Executors;
 public class Client {
 
     /**
+     * 服务端端口
+     */
+    private static final int SERVER_PORT = 9000;
+
+    /**
+     * 服务端主机地址
+     */
+    private static final String SERVER_HOST = "localhost";
+
+    /**
      * 读取服务端消息的线程池
      */
     private final ExecutorService consumer = Executors.newFixedThreadPool(1);
@@ -38,7 +48,7 @@ public class Client {
      * @throws IOException io异常
      */
     public void start() throws IOException {
-        try (Socket client = new Socket("localhost", 8200)) {
+        try (Socket client = new Socket(SERVER_HOST, SERVER_PORT)) {
             this.socket = client;
             readServerMessage();
             sendMessageToServer();

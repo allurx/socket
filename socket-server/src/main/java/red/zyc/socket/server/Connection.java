@@ -89,8 +89,8 @@ public class Connection {
      */
     public boolean abnormal() {
         try {
-            // 默认情况下SocketOptions#SO_OOBINLINE是关闭的，发送的字节不会被追加到流中去。
-            // 发送失败代表客户端与服务端的连接有问题，可能是一方的连接被重置了。
+            // 默认情况下SocketOptions#SO_OOBINLINE是关闭的，即发送的字节不会被追加到流中去。
+            // 如果发送失败代表客户端与服务端的连接有问题，可能是一方的连接被重置了。
             socket.sendUrgentData(0xff);
         } catch (Exception e) {
             return true;

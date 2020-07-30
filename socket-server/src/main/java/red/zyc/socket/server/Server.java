@@ -25,6 +25,11 @@ import java.util.concurrent.TimeUnit;
 public class Server {
 
     /**
+     * 服务端监听的端口
+     */
+    private static final int LISTEN = 9000;
+
+    /**
      * 处理每个客户端连接的线程池
      */
     private final ExecutorService consumer = new ThreadPoolExecutor(3, 3, 0, TimeUnit.SECONDS, new SynchronousQueue<>(), Executors.defaultThreadFactory(), new RejectedSocketConnectionHandler());
@@ -54,7 +59,7 @@ public class Server {
      * @throws IOException io异常
      */
     public void start() throws IOException {
-        try (ServerSocket server = new ServerSocket(8200)) {
+        try (ServerSocket server = new ServerSocket(LISTEN)) {
             this.serverSocket = server;
             sendMessageToClient();
             acceptClient();
