@@ -1,9 +1,9 @@
 # IntelliJ project files
 .idea
-**/*.iml
+*.iml
 
 # java
-**/target
+target
 
 # jrebel
-**/rebel.xml
+rebel.xml
