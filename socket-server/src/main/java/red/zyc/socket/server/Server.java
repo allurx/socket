@@ -113,10 +113,9 @@ public class Server {
         @SneakyThrows
         @Override
         public void run() {
-            Connection connection;
             try {
                 log.info("客户端[{}:{}]已连接", socket.getInetAddress().getHostAddress(), socket.getPort());
-                connection = new Connection(Server.this, socket);
+                Connection connection = new Connection(Server.this, socket);
                 connections.add(connection);
                 connection.readClientMessage();
             } catch (Exception e) {
