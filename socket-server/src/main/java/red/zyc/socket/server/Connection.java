@@ -50,7 +50,7 @@ public class Connection {
             String line;
             // readLine会阻塞直到读到一个换行符为止，返回null代表socket关闭了
             while ((line = reader.readLine()) != null) {
-                log.info("来自客户端[{}:{}}]的消息: {}", socket.getInetAddress().getHostAddress(), socket.getPort(), line);
+                log.info("来自客户端[{}:{}]的消息: {}", socket.getInetAddress().getHostAddress(), socket.getPort(), line);
             }
         } catch (Exception e) {
             throw new ServerException(e);
