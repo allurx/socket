@@ -61,7 +61,7 @@ public class Server {
     public void start() throws IOException {
         try (ServerSocket server = new ServerSocket(LISTEN)) {
             this.serverSocket = server;
-            sendMessageToClient();
+            writeMessageToClient();
             acceptClient();
         }
     }
@@ -86,7 +86,7 @@ public class Server {
     /**
      * 将控制台输入消息发送到客户端
      */
-    private void sendMessageToClient() {
+    private void writeMessageToClient() {
         producer.execute(() -> {
             try (Scanner scanner = new Scanner(System.in)) {
                 // 阻塞直到控制台有满足条件的输入

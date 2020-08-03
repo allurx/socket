@@ -51,7 +51,7 @@ public class Client {
         try (Socket client = new Socket(SERVER_HOST, SERVER_PORT)) {
             this.socket = client;
             readServerMessage();
-            sendMessageToServer();
+            writeMessageToServer();
         }
     }
 
@@ -60,7 +60,7 @@ public class Client {
      *
      * @throws IOException io异常
      */
-    private void sendMessageToServer() throws IOException {
+    private void writeMessageToServer() throws IOException {
         try (Scanner scanner = new Scanner(System.in);
 
              BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))) {
