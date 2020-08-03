@@ -72,7 +72,7 @@ public class Server {
      * @throws IOException io异常
      */
     private void acceptClient() throws IOException {
-        for (; ; ) {
+        while (!Thread.interrupted()) {
 
             // main线程阻塞直到有一个连接建立为止
             Socket socket = serverSocket.accept();
