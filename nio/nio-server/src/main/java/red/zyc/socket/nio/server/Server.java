@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -31,26 +30,22 @@ public class Server {
      * 服务端监听的端口
      */
     private static final int LISTEN = 9001;
-
-    /**
-     * 服务端socket通道
-     */
-    private ServerSocketChannel serverSocketChannel;
-
     /**
      * 选择器
      */
     private final Selector selector;
-
     /**
      * 所有客户端连接
      */
     private final List<Connection> connections = new CopyOnWriteArrayList<>();
-
     /**
      * 往客户端写消息的线程池
      */
     private final ExecutorService producer = Executors.newFixedThreadPool(1);
+    /**
+     * 服务端socket通道
+     */
+    private ServerSocketChannel serverSocketChannel;
 
     public Server(Selector selector) {
         this.selector = selector;
@@ -119,7 +114,7 @@ public class Server {
 
                     InetSocketAddress inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
                     log.info("客户端[{}:{}]已连接", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
-                    Connection connection = new Connection(this, socketChannel, selectionKey);
+                    Connection connection = new Connection(this, socketChannel);
                     connections.add(connection);
                     register.attach(connection);
 
@@ -140,7 +135,6 @@ public class Server {
     private void writeMessageToClient() {
         producer.execute(() -> {
             try (Scanner scanner = new Scanner(System.in)) {
-
                 // 阻塞直到控制台有满足条件的输入
                 while (scanner.hasNext()) {
                     String message = scanner.next();

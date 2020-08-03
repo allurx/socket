@@ -28,18 +28,15 @@ public class Client {
      * 服务端主机地址
      */
     private static final String SERVER_HOST = "localhost";
-
-    /**
-     * 客户端与服务端的socket通道
-     */
-    private SocketChannel socketChannel;
-
     private final Selector selector;
-
     /**
      * 往服务端写消息的线程池
      */
     private final ExecutorService producer = Executors.newFixedThreadPool(1);
+    /**
+     * 客户端与服务端的socket通道
+     */
+    private SocketChannel socketChannel;
 
     public Client(Selector selector) {
         this.selector = selector;
@@ -72,9 +69,14 @@ public class Client {
             Set<SelectionKey> selectionKeys = selector.selectedKeys();
             for (SelectionKey selectionKey : selectionKeys) {
                 if (selectionKey.isReadable()) {
-                    socketChannel.read(byteBuffer);
-                    InetSocketAddress inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
-                    log.info("来自服务端[{}:{}]的消息: {}", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort(), new String(byteBuffer.array()));
+                    int read = socketChannel.read(byteBuffer);
+                    if (read <= 0) {
+                        socketChannel.close();
+                        selectionKey.cancel();
+                    } else {
+                        InetSocketAddress inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
+                        log.info("来自服务端[{}:{}]的消息: {}", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort(), new String(byteBuffer.array(), 0, byteBuffer.position()));
+                    }
                     byteBuffer.clear();
                 }
             }
