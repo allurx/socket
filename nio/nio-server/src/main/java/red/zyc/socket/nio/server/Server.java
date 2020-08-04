@@ -9,10 +9,11 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -29,18 +30,22 @@ public class Server {
      * 服务端监听的端口
      */
     private static final int LISTEN = 9001;
+
     /**
      * 选择器
      */
     private final Selector selector;
+
     /**
      * 所有客户端连接
      */
-    private final List<Connection> connections = new CopyOnWriteArrayList<>();
+    private final ConcurrentMap<String, Connection> connections = new ConcurrentHashMap<>();
+
     /**
      * 往客户端写消息的线程池
      */
     private final ExecutorService producer = Executors.newFixedThreadPool(1);
+
     /**
      * 服务端socket通道
      */
@@ -74,6 +79,11 @@ public class Server {
         new Server(Selector.open()).start();
     }
 
+    /**
+     * 启动服务器
+     *
+     * @throws IOException io异常
+     */
     public void start() throws IOException {
         try (ServerSocketChannel server = ServerSocketChannel.open()) {
 
@@ -85,7 +95,7 @@ public class Server {
             // 与Selector一起使用时，Channel必须处于非阻塞模式下
             serverSocketChannel.configureBlocking(false);
 
-            // 向选择器注册感兴趣的事件，可以用“位或”操作符将常量连接起来SelectionKey.OP_READ | SelectionKey.OP_WRITE。
+            // 向选择器注册感兴趣的事件，可以用“按位或”操作符将常量连接起来SelectionKey.OP_READ | SelectionKey.OP_WRITE。
             // 返回值代表此通道在该选择器中注册的键
             serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
@@ -103,11 +113,9 @@ public class Server {
 
         while (!Thread.interrupted()) {
 
-            // 阻塞直到有一个已注册的通道上有满足条件的事件就绪，
-            // 或者selector的wakeup方法被调用或者当前线程被中断。
-            // 方法返回的int值表示所有已注册的SelectionKey。
-            // 也就是说如果没有把上一次select返回的selectedKeys移除掉，那么下一次循环select方法返回的selectedKeys就会包含上一次的selectedKeys，
-            // 这是一个坑，一定要在迭代结束后移除已处理的SelectionKey
+            // 阻塞直到有一个已注册的通道上有满足条件的事件就绪，或者selector的wakeup方法被调用或者当前线程被中断。
+            // 方法返回的int值表示有io事件准备就绪的所有已注册的SelectionKey。注意如果没有把上一次select返回的selectedKeys移除掉，
+            // 那么下一次循环select方法返回的selectedKeys就会包含上一次的selectedKeys，这是一个坑一定要在迭代结束后移除已处理的SelectionKey
             int select = selector.select();
             if (select == 0) {
                 continue;
@@ -118,30 +126,35 @@ public class Server {
 
             // 遍历所有准备就绪的SelectionKey
             for (SelectionKey selectionKey : selectionKeys) {
+                try {
+                    // 只处理有效的selectionKey
+                    if (selectionKey.isValid()) {
 
-                // 只处理有效的selectionKey
-                if (selectionKey.isValid()) {
+                        // 当前SelectionKey的通道能够获取一个新的socket connection事件
+                        if (selectionKey.isAcceptable()) {
+                            ServerSocketChannel channel = (ServerSocketChannel) selectionKey.channel();
+                            SocketChannel socketChannel = channel.accept();
+                            socketChannel.configureBlocking(false);
 
-                    // 当前SelectionKey的通道能够获取一个新的socket connection事件
-                    if (selectionKey.isAcceptable()) {
-                        ServerSocketChannel channel = (ServerSocketChannel) selectionKey.channel();
-                        SocketChannel socketChannel = channel.accept();
-                        socketChannel.configureBlocking(false);
+                            // 将这个socket通道注册到selector中，监听读事件
+                            SelectionKey register = socketChannel.register(selector, SelectionKey.OP_READ);
 
-                        // 将这个socket通道注册到selector中，监听读事件
-                        SelectionKey register = socketChannel.register(selector, SelectionKey.OP_READ);
+                            InetSocketAddress inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
+                            log.info("客户端[{}:{}]已连接", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
 
-                        InetSocketAddress inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
-                        log.info("客户端[{}:{}]已连接", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
-                        Connection connection = new Connection(this, socketChannel);
-                        connections.add(connection);
-                        register.attach(connection);
+                            String id = UUID.randomUUID().toString();
+                            Connection connection = new Connection(id, this, socketChannel);
+                            connections.put(id, connection);
+                            register.attach(connection);
 
-                        // 当前SelectionKey的通道能够读取事件
-                    } else if (selectionKey.isReadable()) {
-                        Connection connection = (Connection) selectionKey.attachment();
-                        connection.readClientMessage();
+                            // 当前SelectionKey的通道能够读取事件，这个方法可能会抛出CancelledKeyException
+                        } else if (selectionKey.isReadable()) {
+                            Connection connection = (Connection) selectionKey.attachment();
+                            connection.readClientMessage();
+                        }
                     }
+                } catch (Exception e) {
+                    log.error(e.getMessage(), e);
                 }
             }
             // 清除所有selectionKey，否则下一次select返回的selectedKeys就会包含这一次的selectedKeys，
@@ -158,11 +171,10 @@ public class Server {
                 // 阻塞直到控制台有满足条件的输入
                 while (scanner.hasNext()) {
                     String message = scanner.next();
-                    connections.forEach(connection -> connection.writeMessageToClient(message));
+                    connections.values().forEach(connection -> connection.writeMessageToClient(message));
                 }
             } catch (Exception e) {
                 log.error("往客户端写消息时发生异常", e);
-                producer.shutdown();
             }
         });
     }
