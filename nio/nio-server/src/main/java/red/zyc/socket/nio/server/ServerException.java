@@ -5,7 +5,8 @@ package red.zyc.socket.nio.server;
  */
 public class ServerException extends RuntimeException {
 
-    public ServerException(Throwable t) {
-        super(t);
+    public ServerException(String message) {
+        super(message);
     }
+
 }

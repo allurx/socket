@@ -100,7 +100,7 @@ public class Client {
             } catch (Exception e) {
                 log.error("往服务端写消息时发生异常", e);
             } finally {
-                producer.shutdown();
+                System.exit(0);
             }
         });
     }
