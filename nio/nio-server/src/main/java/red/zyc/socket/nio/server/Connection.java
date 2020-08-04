@@ -50,7 +50,7 @@ public class Connection {
     /**
      * 处理业务逻辑的线程池
      */
-    private final ExecutorService processExecutor = new ThreadPoolExecutor(100, 100, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(200), Executors.defaultThreadFactory(), new RejectedSocketConnectionHandler());
+    private final ExecutorService processExecutor = new ThreadPoolExecutor(10, 10, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(10), Executors.defaultThreadFactory(), new RejectedSocketConnectionHandler());
 
     public Connection(Server server, SocketChannel socketChannel) {
         this.server = server;
@@ -103,6 +103,8 @@ public class Connection {
             log.info("来自客户端[{}:{}]的消息: {}", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort(), StandardCharsets.UTF_8.decode(data));
         } catch (IOException e) {
             log.error(e.getMessage(), e);
+        }finally {
+            disconnect();
         }
     }
 
