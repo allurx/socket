@@ -146,6 +146,7 @@ public class Server {
                             // 通道是可读的，是能够立马从tcp缓存区读取数据到用户空间中。
                             connection.readData();
 
+                            // 请求数据读完之后提交到业务线程池中执行
                             PROCESS_EXECUTOR.execute(new ProcessTask(connection));
 
                             // 当前SelectionKey的通道能够写事件，这个方法可能会抛出CancelledKeyException

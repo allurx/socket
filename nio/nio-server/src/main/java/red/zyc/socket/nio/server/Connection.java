@@ -24,12 +24,12 @@ public class Connection {
     /**
      * 读缓冲大小1024 (1 KiB)
      */
-    private final int bufferCapacity = 1 << 10;
+    private static final int BUFFER_CAPACITY = 1 << 10;
 
     /**
      * 读字节缓冲
      */
-    private final ByteBuffer readBuffer = ByteBuffer.allocate(bufferCapacity);
+    private final ByteBuffer readBuffer = ByteBuffer.allocate(BUFFER_CAPACITY);
 
     /**
      * 用来测试通道数据是否溢出的字节缓冲
