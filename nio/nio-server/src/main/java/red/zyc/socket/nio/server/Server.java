@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -137,7 +136,7 @@ public class Server {
 
                             InetSocketAddress inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
                             log.info("客户端[{}:{}]已连接", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
-                            register.attach(new Connection(UUID.randomUUID().toString(), this, socketChannel));
+                            register.attach(new Connection(UUID.randomUUID().toString(), this, socketChannel, register));
 
                             // 当前SelectionKey的通道能够读取事件，这个方法可能会抛出CancelledKeyException
                         } else if (selectionKey.isReadable()) {
@@ -145,8 +144,15 @@ public class Server {
 
                             // nio线程读一次请求数据，然后将读到的数据传递给业务线程池执行，此刻读通常情况下是不会阻塞的，因为此刻socket
                             // 通道是可读的，是能够立马从tcp缓存区读取数据到用户空间中。
-                            ByteBuffer data = connection.readData();
-                            PROCESS_EXECUTOR.execute(new ProcessTask(connection, data));
+                            connection.readData();
+
+                            PROCESS_EXECUTOR.execute(new ProcessTask(connection));
+
+                            // 当前SelectionKey的通道能够写事件，这个方法可能会抛出CancelledKeyException
+                        } else if (selectionKey.isWritable()) {
+                            Connection connection = (Connection) selectionKey.attachment();
+                            connection.writeData();
+                            connection.disconnect();
                         }
                     }
                 } catch (Exception e) {

@@ -10,6 +10,7 @@
     <modules>
         <module>nio</module>
         <module>bio</module>
+        <module>aio</module>
     </modules>
     <packaging>pom</packaging>
 
