@@ -4,3 +4,4 @@
 当然你也可以更改服务端线程池的配置以启动更多的客户端。
 2. 启动客户端    
 运行[Client](https://github.com/Allurx/socket-chat/blob/master/bio/bio-client/src/main/java/red/zyc/socket/bio/client/Client.java)的main方法启动客户端。
+3. 观察服务端和客户端的控制台输出即可看到一次tcp请求的完整流程。
