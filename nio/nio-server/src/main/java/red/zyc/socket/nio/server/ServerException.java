@@ -9,4 +9,8 @@ public class ServerException extends RuntimeException {
         super(message);
     }
 
+    public ServerException(Throwable t) {
+        super(t);
+    }
+
 }

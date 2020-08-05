@@ -43,11 +43,6 @@ public class Connection {
     private final String id;
 
     /**
-     * {@link Server}
-     */
-    private final Server server;
-
-    /**
      * 服务端与客户端的socket通道
      */
     private final SocketChannel socketChannel;
@@ -77,9 +72,8 @@ public class Connection {
      */
     private ByteBuffer response;
 
-    public Connection(String id, Server server, SocketChannel socketChannel, SelectionKey selectionKey) throws IOException {
+    public Connection(String id, SocketChannel socketChannel, SelectionKey selectionKey) throws IOException {
         this.id = id;
-        this.server = server;
         this.socketChannel = socketChannel;
         this.selectionKey = selectionKey;
         this.inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
