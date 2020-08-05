@@ -30,6 +30,8 @@ public class ProcessTask implements Runnable {
     @Override
     public void run() {
         try {
+
+            // 模拟业务操作，这里仅仅打印了请求的数据
             log.info("来自客户端[{}:{}]的消息: {}", connection.getInetSocketAddress().getAddress().getHostAddress(), connection.getInetSocketAddress().getPort(), StandardCharsets.UTF_8.decode(connection.getRequest()));
 
             // 准备io写事件
@@ -39,7 +41,7 @@ public class ProcessTask implements Runnable {
             connection.getSelectionKey().interestOps(SelectionKey.OP_WRITE);
 
             // 唤醒select线程以触发写事件
-            connection.getServer().getSelector().wakeup();
+            connection.getSelectionKey().selector().wakeup();
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
