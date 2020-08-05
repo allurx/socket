@@ -5,17 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.rmi.ServerException;
 import java.util.Arrays;
-import java.util.Scanner;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * @author zyc
@@ -54,14 +50,14 @@ public class Client {
     private final Selector selector;
 
     /**
-     * 往服务端写消息的线程池
-     */
-    private final ExecutorService producer = Executors.newFixedThreadPool(1);
-
-    /**
      * 客户端与服务端的socket通道
      */
     private SocketChannel socketChannel;
+
+    /**
+     * 网络地址
+     */
+    private InetSocketAddress inetSocketAddress;
 
     public Client(Selector selector) {
         this.selector = selector;
@@ -74,10 +70,14 @@ public class Client {
     public void start() throws IOException {
         try (SocketChannel client = SocketChannel.open(new InetSocketAddress(SERVER_HOST, SERVER_PORT))) {
             this.socketChannel = client;
+            this.inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
             client.configureBlocking(false);
             client.register(selector, SelectionKey.OP_READ);
+
             writeMessageToServer();
             readServerMessage();
+        } finally {
+            System.exit(0);
         }
     }
 
@@ -95,11 +95,9 @@ public class Client {
                 if (selectionKey.isValid() && selectionKey.isReadable()) {
                     try {
                         ByteBuffer response = readBuffer();
-                        InetSocketAddress inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
                         log.info("来自服务端[{}:{}]的消息: {}", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort(), StandardCharsets.UTF_8.decode(response));
                     } catch (Exception e) {
                         log.error(e.getMessage(), e);
-                        System.exit(0);
                     }
                 }
             }
@@ -109,22 +107,10 @@ public class Client {
 
 
     /**
-     * 将控制台输入消息发送到服务端
+     * 发送消息到服务端
      */
-    private void writeMessageToServer() {
-        producer.execute(() -> {
-            try (Scanner scanner = new Scanner(System.in)) {
-
-                // 阻塞直到控制台有满足条件的输入
-                while (scanner.hasNext()) {
-                    String message = scanner.next();
-                    socketChannel.write(ByteBuffer.wrap(message.getBytes()));
-                }
-            } catch (Exception e) {
-                log.error("往服务端写消息时发生异常", e);
-                System.exit(0);
-            }
-        });
+    private void writeMessageToServer() throws IOException {
+        socketChannel.write(ByteBuffer.wrap("我是客户端".getBytes()));
     }
 
     /**
@@ -139,7 +125,7 @@ public class Client {
             // 通道已关闭
             if (read == -1) {
                 socketChannel.close();
-                throw new ClosedChannelException();
+                System.exit(0);
             }
             // 未读满缓冲区
             if (read < READ_BUFFER.limit()) {

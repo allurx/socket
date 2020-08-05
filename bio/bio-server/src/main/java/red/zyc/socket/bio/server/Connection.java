@@ -8,8 +8,10 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 客户端与服务端的socket连接
@@ -20,9 +22,14 @@ import java.time.LocalDateTime;
 @Getter
 public class Connection {
 
+    private final String id;
+
     private final Socket socket;
 
-    private final Server server;
+    /**
+     * 当前socket通道的网络地址
+     */
+    private final InetSocketAddress inetSocketAddress;
 
     /**
      * socket关闭时read方法返回-1，socket没有关闭但是没有数据时read方法会阻塞当前线程直到
@@ -34,9 +41,10 @@ public class Connection {
 
     private final LocalDateTime createdTime;
 
-    public Connection(Server server, Socket socket) throws IOException {
-        this.server = server;
+    public Connection(Socket socket) throws IOException {
+        this.id = UUID.randomUUID().toString();
         this.socket = socket;
+        this.inetSocketAddress = (InetSocketAddress) socket.getRemoteSocketAddress();
         this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
         this.createdTime = LocalDateTime.now();
@@ -45,18 +53,15 @@ public class Connection {
     /**
      * 读客户端发送过来的消息
      */
-    public void readClientMessage() {
+    public void readData() {
         try {
             String line;
             // readLine会阻塞直到读到一个换行符为止，返回null代表socket关闭了
-            while ((line = reader.readLine()) != null) {
+            if ((line = reader.readLine()) != null) {
                 log.info("来自客户端[{}:{}]的消息: {}", socket.getInetAddress().getHostAddress(), socket.getPort(), line);
             }
         } catch (Exception e) {
             throw new ServerException(e);
-        } finally {
-            // 进入finally代表读socket时发生了异常或者socket已经关闭了
-            server.getConnections().remove(this);
         }
     }
 
@@ -65,7 +70,7 @@ public class Connection {
      *
      * @param message 消息
      */
-    public void writeMessageToClient(String message) {
+    public void writeData(String message) {
         try {
 
             writer.write(message);
@@ -77,8 +82,18 @@ public class Connection {
             writer.flush();
 
         } catch (Exception e) {
-            server.getConnections().remove(this);
             throw new ServerException(e);
+        }
+    }
+
+    /**
+     * 断开连接
+     */
+    public void disconnect() {
+        try {
+            socket.close();
+        } catch (IOException e) {
+            log.error(e.getMessage(), e);
         }
     }
 
@@ -95,8 +110,7 @@ public class Connection {
         } catch (Exception e) {
             return true;
         }
-        return server.getServerSocket().isClosed() ||
-                socket.isClosed() ||
+        return socket.isClosed() ||
                 socket.isOutputShutdown() ||
                 socket.isInputShutdown();
     }

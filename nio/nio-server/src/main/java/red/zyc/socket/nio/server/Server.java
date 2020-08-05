@@ -5,17 +5,17 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Scanner;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 响应器
@@ -32,19 +32,14 @@ public class Server {
     private static final int LISTEN = 9001;
 
     /**
+     * 处理业务逻辑的线程池
+     */
+    private static final ThreadPoolExecutor PROCESS_EXECUTOR = new ThreadPoolExecutor(100, 100, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100), Executors.defaultThreadFactory(), new RejectedSocketConnectionHandler());
+
+    /**
      * 选择器
      */
     private final Selector selector;
-
-    /**
-     * 所有客户端连接
-     */
-    private final ConcurrentMap<String, Connection> connections = new ConcurrentHashMap<>();
-
-    /**
-     * 往客户端写消息的线程池
-     */
-    private final ExecutorService producer = Executors.newFixedThreadPool(1);
 
     /**
      * 服务端socket通道
@@ -77,6 +72,7 @@ public class Server {
      */
     public static void main(String[] args) throws IOException {
         new Server(Selector.open()).start();
+        PROCESS_EXECUTOR.prestartAllCoreThreads();
     }
 
     /**
@@ -99,17 +95,17 @@ public class Server {
             // 返回值代表此通道在该选择器中注册的键
             serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-            writeMessageToClient();
-            readClientMessage();
+            // 轮询io事件
+            eventLoop();
         }
     }
 
     /**
-     * 读客户端信息
+     * io事件监听以及派发
      *
      * @throws IOException io异常
      */
-    private void readClientMessage() throws IOException {
+    private void eventLoop() throws IOException {
 
         while (!Thread.interrupted()) {
 
@@ -141,16 +137,16 @@ public class Server {
 
                             InetSocketAddress inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
                             log.info("客户端[{}:{}]已连接", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
-
-                            String id = UUID.randomUUID().toString();
-                            Connection connection = new Connection(id, this, socketChannel);
-                            connections.put(id, connection);
-                            register.attach(connection);
+                            register.attach(new Connection(UUID.randomUUID().toString(), this, socketChannel));
 
                             // 当前SelectionKey的通道能够读取事件，这个方法可能会抛出CancelledKeyException
                         } else if (selectionKey.isReadable()) {
                             Connection connection = (Connection) selectionKey.attachment();
-                            connection.readClientMessage();
+
+                            // nio线程读一次请求数据，然后将读到的数据传递给业务线程池执行，此刻读通常情况下是不会阻塞的，因为此刻socket
+                            // 通道是可读的，是能够立马从tcp缓存区读取数据到用户空间中。
+                            ByteBuffer data = connection.readData();
+                            PROCESS_EXECUTOR.execute(new ProcessTask(connection, data));
                         }
                     }
                 } catch (Exception e) {
@@ -162,20 +158,4 @@ public class Server {
         }
     }
 
-    /**
-     * 将控制台输入消息发送到服务端
-     */
-    private void writeMessageToClient() {
-        producer.execute(() -> {
-            try (Scanner scanner = new Scanner(System.in)) {
-                // 阻塞直到控制台有满足条件的输入
-                while (scanner.hasNext()) {
-                    String message = scanner.next();
-                    connections.values().forEach(connection -> connection.writeMessageToClient(message));
-                }
-            } catch (Exception e) {
-                log.error("往客户端写消息时发生异常", e);
-            }
-        });
-    }
 }
