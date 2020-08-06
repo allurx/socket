@@ -32,7 +32,7 @@ public class ProcessTask implements Runnable {
             String message = StandardCharsets.UTF_8.decode(request).toString();
             log.info("来自客户端{}的消息: {}", connection.clientAddress(), message);
 
-            // 写入业务返回的数据
+            // 写入业务返回的数据，约定换行符代表一次tcp响应的结尾
             ByteBuffer response = ByteBuffer.wrap(String.format("我是连接%s的响应%n", connection.getId()).getBytes());
             connection.setResponse(response);
 

@@ -131,6 +131,8 @@ public class SubReactor implements Runnable {
             }
             // 一次读写ByteBuffer产生的异常不应该停止事件轮询
         } catch (Exception e) {
+            // 读写SocketChannel数据发生异常时，将其从selector的注册中取消，不在关注其任何io事件。
+            selectionKey.cancel();
             log.error(e.getMessage(), e);
         }
     }
@@ -182,6 +184,9 @@ public class SubReactor implements Runnable {
     private boolean readSocketChannel(Connection connection) throws IOException {
         try {
             SocketChannel socketChannel = connection.getSocketChannel();
+
+            // 如果客户端由于断网等原因造成的关闭，那么read方法会抛出一个IOException而不是返回-1。
+            // 只有客户端主动调用socketChannel.close()方法read方法才会返回-1。
             int read = socketChannel.read(readBuffer);
 
             // 客户端通道已关闭
@@ -221,7 +226,7 @@ public class SubReactor implements Runnable {
 
             // 注意register方法是与select方法同步互斥的，他们内部都synchronized了publicKeys，
             // 所以通常情况下register必须在select之前执行，由于我们使用的主从reactor模式，两个reactor
-            // 是运行在不同的线程上的，我们需要将MainReactor接受到的连接传递给SubReactor，
+            // 是运行在不同的线程上的，我们需要将MainReactor接受到的SocketChannel传递给SubReactor，
             // 而SubReactor已经提前在线程池中运行很有可能已经阻塞在select方法上了，
             // 所以我们可以通过在MainReactor线程上将socket连接添加到SubReactor内部的容器中接着再唤醒SubReactor，
             // SubReactor再调用这个注册方法将容器中的连接都注册到自己的selector中。

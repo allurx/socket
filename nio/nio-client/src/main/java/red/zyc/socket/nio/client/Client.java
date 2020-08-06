@@ -76,8 +76,6 @@ public class Client {
 
             writeMessageToServer();
             readServerMessage();
-        } finally {
-            System.exit(0);
         }
     }
 
@@ -98,6 +96,9 @@ public class Client {
                         log.info("来自服务端[{}:{}]的消息: {}", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort(), StandardCharsets.UTF_8.decode(response));
                     } catch (Exception e) {
                         log.error(e.getMessage(), e);
+                    } finally {
+                        socketChannel.close();
+                        System.exit(0);
                     }
                 }
             }
