@@ -44,15 +44,6 @@ public class Server {
      * @throws IOException io异常
      */
     public static void main(String[] args) throws IOException {
-        start();
-    }
-
-    /**
-     * 启动服务器
-     *
-     * @throws IOException io异常
-     */
-    private static void start() throws IOException {
         try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
              Selector selector = Selector.open()) {
 
