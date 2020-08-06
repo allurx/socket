@@ -16,6 +16,6 @@ public class RejectedSocketConnectionHandler implements RejectedExecutionHandler
     @Override
     public void rejectedExecution(Runnable runnable, ThreadPoolExecutor executor) {
         ProcessTask processTask = (ProcessTask) runnable;
-        log.error("服务端负载已满，请求{}已被丢弃", processTask.getId());
+        log.error("服务端负载已满，请求{}已被丢弃", processTask.getConnection().getId());
     }
 }

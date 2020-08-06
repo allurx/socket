@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 
 /**
@@ -42,7 +44,7 @@ public class Server {
      * @throws IOException io异常
      */
     public static void main(String[] args) throws IOException {
-        new Server().start();
+        start();
     }
 
     /**
@@ -50,16 +52,22 @@ public class Server {
      *
      * @throws IOException io异常
      */
-    public void start() throws IOException {
-        try (ServerSocketChannel server = ServerSocketChannel.open()) {
+    private static void start() throws IOException {
+        try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+             Selector selector = Selector.open()) {
 
             // 监听本地端口
-            server.bind(new InetSocketAddress(LISTEN));
+            serverSocketChannel.bind(new InetSocketAddress(LISTEN));
 
             // 与Selector一起使用时，Channel必须处于非阻塞模式下
-            server.configureBlocking(false);
+            serverSocketChannel.configureBlocking(false);
 
-            new MainReactor(server).accept();
+            // 向选择器注册感兴趣的事件，可以用“按位或”操作符将常量连接起来SelectionKey.OP_READ | SelectionKey.OP_WRITE。
+            // 返回值代表此通道在该选择器中注册的键，MainReactor只关心accept事件
+            serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+
+            Thread.currentThread().setName("MainReactor");
+            new MainReactor(selector).accept();
         }
     }
 
