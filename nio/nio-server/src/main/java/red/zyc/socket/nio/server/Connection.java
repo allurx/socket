@@ -50,7 +50,7 @@ public class Connection {
     /**
      * 于此连接通道关联的选择键
      */
-    private final SelectionKey selectionKey;
+    private SelectionKey selectionKey;
 
     /**
      * 当前socket通道的网络地址
@@ -72,10 +72,9 @@ public class Connection {
      */
     private ByteBuffer response;
 
-    public Connection(String id, SocketChannel socketChannel, SelectionKey selectionKey) throws IOException {
+    public Connection(String id, SocketChannel socketChannel) throws IOException {
         this.id = id;
         this.socketChannel = socketChannel;
-        this.selectionKey = selectionKey;
         this.inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
         this.createdTime = LocalDateTime.now();
     }

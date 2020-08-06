@@ -9,6 +9,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -25,18 +26,16 @@ public class SubReactor implements Runnable {
      */
     private static final ThreadPoolExecutor PROCESS_EXECUTOR = new ThreadPoolExecutor(100, 100, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100), Executors.defaultThreadFactory(), new RejectedSocketConnectionHandler());
 
-    static {
-        PROCESS_EXECUTOR.prestartAllCoreThreads();
-    }
-
-
     private final ServerSocketChannel serverSocketChannel;
 
     private final Selector selector;
 
+    private final ConcurrentHashMap<String, Connection> connections = new ConcurrentHashMap<>();
+
     public SubReactor(ServerSocketChannel serverSocketChannel) throws IOException {
         this.serverSocketChannel = serverSocketChannel;
         this.selector = Selector.open();
+        PROCESS_EXECUTOR.prestartAllCoreThreads();
     }
 
     @Override
@@ -47,6 +46,7 @@ public class SubReactor implements Runnable {
                 // 方法返回的int值表示有io事件准备就绪的所有已注册的SelectionKey。注意如果没有把上一次select返回的selectedKeys移除掉，
                 // 那么下一次循环select方法返回的selectedKeys就会包含上一次的selectedKeys，这是一个坑一定要在迭代结束后移除已处理的SelectionKey
                 int select = selector.select();
+                register();
                 if (select == 0) {
                     continue;
                 }
@@ -89,6 +89,18 @@ public class SubReactor implements Runnable {
                 throw new ServerException(e);
             }
 
+        }
+    }
+
+    public void register() throws IOException {
+        for (Connection connection : connections.values()) {
+            // 按照顺序将这个socket通道注册到SubReactor的selector中，让这个SubReactor处理该连接的io事件
+            // 注意register方法是与select方法同步互斥的，他们内部都synchronized了publicKeys，所以register必须在select之前执行
+            connections.remove(connection.getId());
+            SelectionKey register = connection.getSocketChannel().register(selector, 0);
+            connection.setSelectionKey(register);
+            register.attach(connection);
+            register.interestOps(SelectionKey.OP_READ);
         }
     }
 }

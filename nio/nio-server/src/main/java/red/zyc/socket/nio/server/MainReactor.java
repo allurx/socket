@@ -12,6 +12,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author zyc
@@ -19,17 +22,35 @@ import java.util.concurrent.Executors;
 @Slf4j
 public class MainReactor {
 
+    /**
+     * cpu数量
+     */
     private static final int CPUS = Runtime.getRuntime().availableProcessors();
 
-    private static final ExecutorService SUB_REACTORS_EVENT_LOOP = Executors.newFixedThreadPool(CPUS);
+    /**
+     * SubReactor线程池，该线程池只会在{@link #initSubReactors 初始化时}执行{@link #subReactors}中的所有任务，多余的任务将会被抛弃。
+     */
+    private static final ExecutorService SUB_REACTORS_EVENT_LOOP = new ThreadPoolExecutor(CPUS, CPUS, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), Executors.defaultThreadFactory(), new ThreadPoolExecutor.DiscardPolicy());
 
+    /**
+     * 服务端socket通道
+     */
     private final ServerSocketChannel serverSocketChannel;
 
+    /**
+     * 监听accept事件的选择器
+     */
     private final Selector selector;
 
+    /**
+     * 子reactor
+     */
     private final SubReactor[] subReactors = new SubReactor[CPUS];
 
-    private int currentReactor = 0;
+    /**
+     * 处理accept到的SocketChannel的下一个SubReactor在数组中的索引
+     */
+    private int nextReactor = 0;
 
     public MainReactor(ServerSocketChannel serverSocketChannel) throws IOException {
         this.serverSocketChannel = serverSocketChannel;
@@ -44,6 +65,11 @@ public class MainReactor {
 
     }
 
+    /**
+     * MainReactor只负责获取socket连接，然后将连接交给SubReactor让其处理io事件。
+     *
+     * @throws IOException io异常
+     */
     public void accept() throws IOException {
         while (!Thread.interrupted()) {
 
@@ -70,9 +96,10 @@ public class MainReactor {
                         InetSocketAddress inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
                         log.info("客户端[{}:{}]已连接", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
 
-                        // 按照顺序将这个socket通道注册到selector中，让这个SubReactor监听该连接的读事件
-                        SelectionKey register = socketChannel.register(nextSubReactor().getSelector(), SelectionKey.OP_READ);
-                        register.attach(new Connection(UUID.randomUUID().toString(), socketChannel, register));
+                        SubReactor subReactor = nextSubReactor();
+                        String connectionId = UUID.randomUUID().toString();
+                        subReactor.getConnections().put(connectionId, new Connection(connectionId, socketChannel));
+                        subReactor.getSelector().wakeup();
                     }
                 } catch (Exception e) {
                     log.error(e.getMessage(), e);
@@ -88,10 +115,10 @@ public class MainReactor {
      * @return 下一个SubReactor
      */
     private SubReactor nextSubReactor() {
-        if (currentReactor == CPUS) {
-            currentReactor = 0;
+        if (nextReactor == CPUS) {
+            nextReactor = 0;
         }
-        return subReactors[currentReactor++];
+        return subReactors[nextReactor++];
     }
 
     /**

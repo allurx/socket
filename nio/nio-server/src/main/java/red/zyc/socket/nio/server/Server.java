@@ -22,11 +22,6 @@ public class Server {
     private static final int LISTEN = 9001;
 
     /**
-     * 服务端socket通道
-     */
-    private ServerSocketChannel serverSocketChannel;
-
-    /**
      * io多路复用是基于事件驱动实现的一种io模型。
      * <ul>
      *     <li>
@@ -58,15 +53,13 @@ public class Server {
     public void start() throws IOException {
         try (ServerSocketChannel server = ServerSocketChannel.open()) {
 
-            this.serverSocketChannel = server;
-
             // 监听本地端口
-            serverSocketChannel.bind(new InetSocketAddress(LISTEN));
+            server.bind(new InetSocketAddress(LISTEN));
 
             // 与Selector一起使用时，Channel必须处于非阻塞模式下
-            serverSocketChannel.configureBlocking(false);
+            server.configureBlocking(false);
 
-            new MainReactor(serverSocketChannel).accept();
+            new MainReactor(server).accept();
         }
     }
 
