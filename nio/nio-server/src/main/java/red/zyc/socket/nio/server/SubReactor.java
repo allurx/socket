@@ -37,12 +37,12 @@ public class SubReactor implements Runnable {
     private static final ThreadPoolExecutor PROCESS_EXECUTOR = new ThreadPoolExecutor(100, 100, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100), new NamedThreadFactory("Process"), new RejectedSocketConnectionHandler());
 
     /**
-     * 读字节缓冲
+     * 读取请求数据的字节缓冲对象，对于同一个SubReactor来说每个Connection的按顺序读的，所以该对象是可以复用的。
      */
     private final ByteBuffer readBuffer = ByteBuffer.allocate(BUFFER_CAPACITY);
 
     /**
-     * 用来测试通道数据是否溢出的字节缓冲
+     * 用来测试SocketChannel一次读数据是否溢出的字节缓冲。一次最多只能读取{@link #readBuffer}的容量大小的字节数。
      */
     private final ByteBuffer readOverflowBuffer = ByteBuffer.allocate(1);
 
@@ -53,13 +53,16 @@ public class SubReactor implements Runnable {
     private final Selector selector;
 
     /**
-     * 当前的SubReactor处理的所有连接。
+     * 当前的SubReactor处理的所有连接。连接关联的SocketChannel注册到Selector之中后该连接就会从map中移除。
      */
     private final Map<String, Connection> connections = new ConcurrentHashMap<>();
 
+    static {
+        PROCESS_EXECUTOR.prestartAllCoreThreads();
+    }
+
     public SubReactor() throws IOException {
         this.selector = Selector.open();
-        PROCESS_EXECUTOR.prestartAllCoreThreads();
     }
 
     @Override
@@ -164,8 +167,8 @@ public class SubReactor implements Runnable {
         SocketChannel socketChannel = connection.getSocketChannel();
         socketChannel.write(connection.getResponse());
 
-        // 注意：写完要注销写事件，否则会一直触发写事件导致cpu超载
-        // 可以在数据写入之后调用connection.disconnect()方法关闭tcp，
+        // 注意：写完要切换为读事件，否则会一直触发写事件导致cpu超载
+        // 可以在数据写入之后调用connection.disconnect()方法关闭SocketChannel，
         // 这样就相当于每次tcp连接都创建一个SocketChannel，开销很大。
         connection.getSelectionKey().interestOps(SelectionKey.OP_READ);
 
@@ -230,9 +233,8 @@ public class SubReactor implements Runnable {
             // 而SubReactor已经提前在线程池中运行很有可能已经阻塞在select方法上了，
             // 所以我们可以通过在MainReactor线程上将socket连接添加到SubReactor内部的容器中接着再唤醒SubReactor，
             // SubReactor再调用这个注册方法将容器中的连接都注册到自己的selector中。
-            SelectionKey register = socketChannel.register(selector, SelectionKey.OP_READ);
+            SelectionKey register = socketChannel.register(selector, SelectionKey.OP_READ, connection);
             connection.setSelectionKey(register);
-            register.attach(connection);
         }
     }
 }

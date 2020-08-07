@@ -32,7 +32,7 @@ public class Connection {
     private final SocketChannel socketChannel;
 
     /**
-     * 于此连接通道关联的选择键
+     * 与此连接通道关联的选择键
      */
     private SelectionKey selectionKey;
 
@@ -47,14 +47,14 @@ public class Connection {
     private final LocalDateTime createdTime;
 
     /**
-     * 请求数据
+     * 请求数据，SubReactor线程每次读取成功能够立马对业务线程可见
      */
-    private ByteBuffer request;
+    private volatile ByteBuffer request;
 
     /**
-     * 响应数据
+     * 响应数据，业务线程每次写入成功能够立马对SubReactor线程可见
      */
-    private ByteBuffer response;
+    private volatile ByteBuffer response;
 
     public Connection(String id, SocketChannel socketChannel) throws IOException {
         this.id = id;

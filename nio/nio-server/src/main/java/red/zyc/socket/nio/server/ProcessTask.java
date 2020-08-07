@@ -34,6 +34,7 @@ public class ProcessTask implements Runnable {
 
             // 写入业务返回的数据，约定换行符代表一次tcp响应的结尾
             ByteBuffer response = ByteBuffer.wrap(String.format("我是连接%s的响应%n", connection.getId()).getBytes());
+
             connection.setResponse(response);
 
             // 注册本次请求的写事件
@@ -45,4 +46,5 @@ public class ProcessTask implements Runnable {
             log.error(e.getMessage(), e);
         }
     }
+
 }
