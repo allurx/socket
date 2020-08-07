@@ -10,7 +10,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -40,7 +40,7 @@ public class MainReactor {
     /**
      * SubReactor线程池，该线程池只会在{@link #initSubReactors 初始化时}执行{@link #SUB_REACTORS}中的所有任务，多余的任务将会被抛弃。
      */
-    private static final ExecutorService SUB_REACTORS_EVENT_LOOP = new ThreadPoolExecutor(SUB_REACTOR_NUM, SUB_REACTOR_NUM, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("SubReactor"), new ThreadPoolExecutor.DiscardPolicy());
+    private static final ExecutorService SUB_REACTORS_EVENT_LOOP = new ThreadPoolExecutor(SUB_REACTOR_NUM, SUB_REACTOR_NUM, 0, TimeUnit.SECONDS, new SynchronousQueue<>(), new NamedThreadFactory("SubReactor"), new ThreadPoolExecutor.DiscardPolicy());
 
     /**
      * 监听accept事件的选择器
