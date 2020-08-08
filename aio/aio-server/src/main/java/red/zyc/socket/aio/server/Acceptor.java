@@ -9,29 +9,25 @@ import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 
 /**
- * MainReactor只获取SocketChannel
- *
  * @author zyc
  */
 @Slf4j
-public class MainReactor implements CompletionHandler<AsynchronousSocketChannel, AsynchronousServerSocketChannel> {
+public class Acceptor implements CompletionHandler<AsynchronousSocketChannel, AsynchronousServerSocketChannel> {
 
-    /**
-     * 监听的端口
-     */
     private static final int LISTEN = 9001;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         try (AsynchronousServerSocketChannel server = AsynchronousServerSocketChannel.open().bind(new InetSocketAddress(LISTEN))) {
-            Thread.currentThread().setName("MainReactor");
-            server.accept(server, new MainReactor());
+            Thread.currentThread().setName("Acceptor");
+            server.accept(server, new Acceptor());
+            Thread.currentThread().join();
         }
     }
 
     @Override
     public void completed(AsynchronousSocketChannel client, AsynchronousServerSocketChannel server) {
         server.accept(server, this);
-        SubReactor.receiveConnection(client);
+        new Connection(client).read();
     }
 
     @Override
