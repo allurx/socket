@@ -5,7 +5,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 能够命名的线程工厂
+ * 用来命名线程池中线程的线程工厂
  *
  * @author zyc
  * @see Executors#defaultThreadFactory()

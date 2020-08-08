@@ -17,7 +17,7 @@ public class RejectedRequestHandler implements RejectedExecutionHandler {
     @Override
     public void rejectedExecution(Runnable runnable, ThreadPoolExecutor executor) {
         ProcessTask processTask = (ProcessTask) runnable;
-        log.error("服务端负载已满，本次连接{}的请求数据已被丢弃", processTask.getConnection().getId());
+        log.error("服务端负载已满，连接{}的请求数据已被丢弃", processTask.getConnection().getId());
 
         // 这一次任务被丢弃了但还是要发送一个换行符标记告诉客户端本次请求结束了
         Connection connection = processTask.getConnection();

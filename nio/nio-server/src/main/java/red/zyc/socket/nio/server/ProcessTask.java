@@ -28,14 +28,10 @@ public class ProcessTask implements Runnable {
         try {
 
             // 模拟业务操作，这里仅仅打印了请求的数据
-            ByteBuffer request = connection.getRequest();
-            String message = StandardCharsets.UTF_8.decode(request).toString();
-            log.info("来自客户端{}的消息: {}", connection.clientAddress(), message);
+            log.info("来自客户端{}的消息: {}", connection.clientAddress(), StandardCharsets.UTF_8.decode(connection.getRequest()).toString());
 
             // 写入业务返回的数据，约定换行符代表一次tcp响应的结尾
-            ByteBuffer response = ByteBuffer.wrap(String.format("我是连接%s的响应%n", connection.getId()).getBytes());
-
-            connection.setResponse(response);
+            connection.setResponse(ByteBuffer.wrap(String.format("我是连接%s的响应%n", connection.getId()).getBytes()));
 
             // 注册本次请求的写事件
             connection.getSelectionKey().interestOps(SelectionKey.OP_WRITE);

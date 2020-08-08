@@ -4,16 +4,17 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
-import java.util.Map;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -34,7 +35,7 @@ public class SubReactor implements Runnable {
     /**
      * 处理业务逻辑的线程池
      */
-    private static final ThreadPoolExecutor PROCESS_EXECUTOR = new ThreadPoolExecutor(100, 100, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100), new NamedThreadFactory("Process"), new RejectedSocketConnectionHandler());
+    private static final ThreadPoolExecutor PROCESS_EXECUTOR = new ThreadPoolExecutor(100, 100, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), new NamedThreadFactory("Process"), new RejectedRequestHandler());
 
     /**
      * 读取请求数据的字节缓冲对象，对于同一个SubReactor来说每个Connection的按顺序读的，所以该对象是可以复用的。
@@ -42,24 +43,15 @@ public class SubReactor implements Runnable {
     private final ByteBuffer readBuffer = ByteBuffer.allocate(BUFFER_CAPACITY);
 
     /**
-     * 用来测试SocketChannel一次读数据是否溢出的字节缓冲。一次最多只能读取{@link #readBuffer}的容量大小的字节数。
-     */
-    private final ByteBuffer readOverflowBuffer = ByteBuffer.allocate(1);
-
-
-    /**
      * 与此reactor关联的选择器
      */
     private final Selector selector;
 
     /**
-     * 当前的SubReactor处理的所有连接。连接关联的SocketChannel注册到Selector之中后该连接就会从map中移除。
+     * 当前的SubReactor处理的所有连接。按照FIFO方式处理连接。新增连接是往队列尾部插入元素，注册连接是从头部移除元素，这两者时间复杂度都是O(1)。
      */
-    private final Map<String, Connection> connections = new ConcurrentHashMap<>();
+    private final Deque<Connection> connections = new LinkedList<>();
 
-    static {
-        PROCESS_EXECUTOR.prestartAllCoreThreads();
-    }
 
     public SubReactor() throws IOException {
         this.selector = Selector.open();
@@ -106,10 +98,8 @@ public class SubReactor implements Runnable {
      * @throws IOException io异常
      */
     public void receiveConnection(SocketChannel socketChannel) throws IOException {
-        String connectionId = UUID.randomUUID().toString();
-        connections.put(connectionId, new Connection(connectionId, socketChannel));
-
-        // 唤醒自己以便注册这个SocketChannel并监听其io事件
+        connections.addLast(new Connection(socketChannel));
+        // 唤醒阻塞在select方法上SubReactor线程或者使下一次select方法直接返回，然后注册队列中的所有SocketChannel并监听其io事件
         selector.wakeup();
     }
 
@@ -150,11 +140,12 @@ public class SubReactor implements Runnable {
 
         // SubReactor线程读一次请求数据，然后将读到的数据传递给业务线程池执行，此刻读通常情况下是不会阻塞的，
         // 因为此刻SocketChannel是可读的，是能够立马从tcp缓存区读取数据到用户空间中。
-        if (readSocketChannel(connection)) {
+        Optional.ofNullable(simpleDecode(connection)).ifPresent(byteBuffer -> {
+            connection.setRequest(byteBuffer);
 
             // 请求数据读完之后提交到业务线程池中执行
             PROCESS_EXECUTOR.execute(new ProcessTask(connection));
-        }
+        });
     }
 
     /**
@@ -175,16 +166,15 @@ public class SubReactor implements Runnable {
     }
 
     /**
-     * 从SocketChannel中读取信息到字节缓冲中。<br>
-     * 注意如果在执行这个方法之前客户端已经连续发送了多次数据到SocketChannel中，那么就会一次性将这几次发送的数据都读出来。
-     * 如果要区分一次客户端请求，那么我们必须和客户端商量好一个标记位，读到这个标记位则代表一次请求数据读取完毕了，例如http协议
-     * 可能会在请求头中定义一个content-length代表一次请求体的长度。<br>
-     * 注意客户端主动关闭SocketChannel是会触发写事件的。
+     * 简单的进行一次tcp读解码，仅仅将{@link #readBuffer}中位置0到position之间的字节包装成一个新的{@link ByteBuffer}返回，
+     * 然后调用{@link Buffer#clear()}方法重置position为0。<br><br>
+     * 注意：该方法仅仅是为了简单调试用的，实际与客户端进行通讯时我们应当和客户端商量好一个标记位，读到这个标记位则代表一次请求数据读取完毕了，
+     * 例如http协议可能会在请求头中定义一个content-length代表一次请求体的长度。
      *
-     * @return 是否读成功
+     * @return 返回null代表客户端已关闭，否则返回从SocketChannel中读取到的数据。
      * @throws IOException io异常
      */
-    private boolean readSocketChannel(Connection connection) throws IOException {
+    private ByteBuffer simpleDecode(Connection connection) throws IOException {
         try {
             SocketChannel socketChannel = connection.getSocketChannel();
 
@@ -196,34 +186,22 @@ public class SubReactor implements Runnable {
             if (read == -1) {
                 log.info(String.format("客户端%s已关闭", connection.clientAddress()));
                 connection.disconnect();
-                return false;
+                return null;
             }
-            // 未读满缓冲区
-            if (read < readBuffer.limit()) {
-                connection.setRequest(ByteBuffer.wrap(Arrays.copyOfRange(readBuffer.array(), 0, readBuffer.position())));
-                return true;
-            }
-            // 通道中还有数据未读
-            if (socketChannel.read(readOverflowBuffer) > 0) {
-                throw new ServerException(String.format("客户端%s请求数据太大", connection.clientAddress()));
-            }
-            // 刚好读满缓冲区
-            connection.setRequest(ByteBuffer.wrap(Arrays.copyOfRange(readBuffer.array(), 0, readBuffer.position())));
-            return true;
+            return ByteBuffer.wrap(Arrays.copyOfRange(readBuffer.array(), 0, readBuffer.position()));
         } finally {
             readBuffer.clear();
-            readOverflowBuffer.clear();
         }
     }
 
     /**
-     * SubReactor被唤醒之后就会将容器中本次拿到的所有SocketChannel都注册到自己的selector中以监听读写事件。
+     * SubReactor被唤醒之后就会按照FIFO的方式将此刻{@link #connections 队列}中所有与{@link Connection}关联的{@link SocketChannel}都注册到自己的selector中以监听读写事件。
      *
      * @throws IOException io异常
      */
     private void register() throws IOException {
-        for (Connection connection : connections.values()) {
-            connections.remove(connection.getId());
+        Connection connection = connections.pollFirst();
+        if (connection != null) {
             SocketChannel socketChannel = connection.getSocketChannel();
             socketChannel.configureBlocking(false);
 
@@ -235,6 +213,7 @@ public class SubReactor implements Runnable {
             // SubReactor再调用这个注册方法将容器中的连接都注册到自己的selector中。
             SelectionKey register = socketChannel.register(selector, SelectionKey.OP_READ, connection);
             connection.setSelectionKey(register);
+            register();
         }
     }
 }

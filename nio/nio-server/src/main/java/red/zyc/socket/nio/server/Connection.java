@@ -10,9 +10,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
- * 客户端和服务端的tcp连接
+ * 客户端和服务端的tcp连接抽象
  *
  * @author zyc
  */
@@ -30,22 +31,18 @@ public class Connection {
      * 服务端与客户端的socket通道
      */
     private final SocketChannel socketChannel;
-
-    /**
-     * 与此连接通道关联的选择键
-     */
-    private SelectionKey selectionKey;
-
     /**
      * 当前socket通道的网络地址
      */
     private final InetSocketAddress inetSocketAddress;
-
     /**
      * 连接创建时间
      */
     private final LocalDateTime createdTime;
-
+    /**
+     * 与此连接通道关联的选择键
+     */
+    private SelectionKey selectionKey;
     /**
      * 请求数据，SubReactor线程每次读取成功能够立马对业务线程可见
      */
@@ -56,8 +53,8 @@ public class Connection {
      */
     private volatile ByteBuffer response;
 
-    public Connection(String id, SocketChannel socketChannel) throws IOException {
-        this.id = id;
+    public Connection(SocketChannel socketChannel) throws IOException {
+        this.id = UUID.randomUUID().toString();
         this.socketChannel = socketChannel;
         this.inetSocketAddress = (InetSocketAddress) socketChannel.getRemoteAddress();
         this.createdTime = LocalDateTime.now();
