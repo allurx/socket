@@ -209,8 +209,8 @@ public class SubReactor implements Runnable {
             // 所以通常情况下register必须在select之前执行，由于我们使用的主从reactor模式，两个reactor
             // 是运行在不同的线程上的，我们需要将MainReactor接受到的SocketChannel传递给SubReactor，
             // 而SubReactor已经提前在线程池中运行很有可能已经阻塞在select方法上了，
-            // 所以我们可以通过在MainReactor线程上将socket连接添加到SubReactor内部的容器中接着再唤醒SubReactor，
-            // SubReactor再调用这个注册方法将容器中的连接都注册到自己的selector中。
+            // 所以我们可以通过在MainReactor线程上将socket连接添加到SubReactor内部的队列中接着再唤醒SubReactor，
+            // SubReactor再调用这个注册方法将队列的连接都注册到自己的selector中。
             SelectionKey register = socketChannel.register(selector, SelectionKey.OP_READ, connection);
             connection.setSelectionKey(register);
             register();
