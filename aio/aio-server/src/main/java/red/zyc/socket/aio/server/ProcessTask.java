@@ -32,7 +32,7 @@ public class ProcessTask implements Runnable {
             // 写入业务返回的数据，约定换行符代表一次tcp响应的结尾
             connection.setResponse(ByteBuffer.wrap(String.format("我是连接%s的响应%n", connection.getId()).getBytes()));
 
-            // 写入响应数据
+            // 写入响应数据，写成功之后会继续触发Connection.completed方法
             connection.write();
         } catch (Exception e) {
             log.error(e.getMessage(), e);

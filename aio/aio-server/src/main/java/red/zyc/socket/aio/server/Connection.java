@@ -2,7 +2,6 @@ package red.zyc.socket.aio.server;
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -18,7 +17,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 第一个类型参数代表读或写成功字节数，第二个类型参数代表当前触发的事件，比如读已完成、写已完成。
+ *
  * @author zyc
+ * @see CompletionHandler
  */
 @Slf4j
 @Getter
@@ -61,11 +63,12 @@ public class Connection implements CompletionHandler<Integer, Integer> {
     private final AsynchronousSocketChannel socketChannel;
 
     /**
-     * 请求数据，读取成功能够立马对业务线程可见
+     * 请求数据，当前线程读取请求成功能够立马对业务线程可见
      */
     private volatile ByteBuffer request;
+
     /**
-     * 响应数据，写入成功能够立马对当前线程可见
+     * 响应数据，业务线程写入响应成功能够立马对当前线程可见
      */
     private volatile ByteBuffer response;
 
@@ -80,7 +83,6 @@ public class Connection implements CompletionHandler<Integer, Integer> {
      * @param result 读取或写入的字节数
      * @param event  触发该方法的事件，读完成还是写完成
      */
-    @SneakyThrows
     @Override
     public void completed(Integer result, Integer event) {
 
@@ -95,7 +97,7 @@ public class Connection implements CompletionHandler<Integer, Integer> {
                 request = simpleDecode();
                 PROCESS_EXECUTOR.execute(new ProcessTask(this));
 
-                // 数据写完之后继续执行读
+                // 数据写完之后继续执行下一次读
             } else {
                 read();
             }
@@ -153,12 +155,12 @@ public class Connection implements CompletionHandler<Integer, Integer> {
     }
 
     /**
-     * 简单的进行一次tcp读的解码，仅仅将{@link #readBuffer}中位置0到position之间的字节包装成一个新的{@link ByteBuffer}返回，
+     * 简单的进行一次tcp读解码，仅仅将{@link #readBuffer}中位置0到position之间的字节包装成一个新的{@link ByteBuffer}返回，
      * 然后调用{@link Buffer#clear()}方法重置position为0。<br><br>
      * 注意：该方法仅仅是为了简单调试用的，实际与客户端进行通讯时我们应当和客户端商量好一个标记位，读到这个标记位则代表一次请求数据读取完毕了，
      * 例如http协议可能会在请求头中定义一个content-length代表一次请求体的长度。
      *
-     * @return 当前缓冲中可读的字节
+     * @return 一次tcp读解码后的 {@link ByteBuffer}
      */
     private ByteBuffer simpleDecode() {
         try {
@@ -167,6 +169,5 @@ public class Connection implements CompletionHandler<Integer, Integer> {
             readBuffer.clear();
         }
     }
-
 
 }
