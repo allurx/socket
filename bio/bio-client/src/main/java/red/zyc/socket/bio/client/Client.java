@@ -70,6 +70,7 @@ public class Client {
      * 读取服务端发送过来的消息
      *
      * @param reader {@link BufferedReader}
+     * @throws IOException io异常
      */
     private void readServerMessage(BufferedReader reader) throws IOException {
         String line;

@@ -44,13 +44,13 @@ public class ProcessTask implements Runnable {
             }
         } catch (Exception e) {
             log.error(e.getMessage(), e);
-        } finally {
-            connection.disconnect();
         }
     }
 
     /**
      * 读客户端发送过来的消息
+     *
+     * @throws IOException io异常
      */
     public String readData(BufferedReader reader) throws IOException {
         String request;
@@ -66,6 +66,7 @@ public class ProcessTask implements Runnable {
      * 将消息发送给客户端
      *
      * @param message 消息
+     * @throws IOException io异常
      */
     public void writeData(BufferedWriter writer, String message) throws IOException {
         writer.write(message);

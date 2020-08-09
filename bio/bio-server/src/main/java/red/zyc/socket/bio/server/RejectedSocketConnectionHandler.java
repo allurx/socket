@@ -1,6 +1,5 @@
 package red.zyc.socket.bio.server;
 
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.RejectedExecutionHandler;
@@ -15,7 +14,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Slf4j
 public class RejectedSocketConnectionHandler implements RejectedExecutionHandler {
 
-    @SneakyThrows
     @Override
     public void rejectedExecution(Runnable runnable, ThreadPoolExecutor executor) {
         log.error("服务端连接数已满");
