@@ -1,8 +1,6 @@
 # 基于aio的tcp网络通信
-1. 启动服务端  
-运行[Server](https://github.com/Allurx/socket/blob/master/aio/aio-server/src/main/java/red/zyc/socket/aio/server/Acceptor.java)的main方法启动服务端。
-2. 启动客户端    
-运行[Client](https://github.com/Allurx/socket/blob/master/aio/aio-client/src/main/java/red/zyc/socket/aio/client/Client.java)的main方法启动客户端。
+1. 运行[Server](https://github.com/Allurx/socket/blob/master/aio/aio-server/src/main/java/red/zyc/socket/aio/server/Acceptor.java)的main方法启动服务端。
+2. 运行[Client](https://github.com/Allurx/socket/blob/master/aio/aio-client/src/main/java/red/zyc/socket/aio/client/Client.java)的main方法启动客户端。
 3. 观察服务端和客户端的控制台输出即可看到一次tcp请求的完整流程。
 # 架构
 aio是jdk1.7对nio的一次版本升级，也可以称为nio2，在nio中所有高性能的io处理都是基于selector的事件驱动来完成的，
@@ -22,7 +20,7 @@ aio是jdk1.7对nio的一次版本升级，也可以称为nio2，在nio中所有�
 拿到这个SocketChannel，如果获取失败则回调failed方法。通常情况下我们可以在completed方法中继续以递归的方式继续调用accept方法以获取新的tcp连接。
 2. 调用上一步获取到的SocketChannel的read方法并添加一个读CompletionHandler，在SocketChannel中的数据读取成功后会回调completed方法，
 读取失败则回调failed方法。
-3. 在第2步成功读取完毕后通常情况下会将读到的数据传递给业务线程池执行，然后将业务数据返回给客户端，这个时候就需要调用SocketChannel的write方法，‘
+3. 在第2步成功读取完毕后通常情况下会将读到的数据传递给业务线程池执行，然后将业务数据返回给客户端，这个时候就需要调用SocketChannel的write方法，
 同样我们也需要添加一个写CompletionHandler，在write成功后会回调completed方法，然后我们继续以递归的方式调用SocketChannel的read方法添加
 第2步中的那个读CompletionHandler作为回调函数，这样只要tcp连接没有关闭我们就能一直在2.3两步中来回切换读写。
 
