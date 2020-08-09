@@ -14,7 +14,7 @@ import java.nio.channels.CompletionHandler;
 @Slf4j
 public class Acceptor implements CompletionHandler<AsynchronousSocketChannel, AsynchronousServerSocketChannel> {
 
-    private static final int LISTEN = 9001;
+    private static final int LISTEN = 9002;
 
     public static void main(String[] args) throws IOException, InterruptedException {
         try (AsynchronousServerSocketChannel server = AsynchronousServerSocketChannel.open().bind(new InetSocketAddress(LISTEN))) {

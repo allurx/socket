@@ -9,8 +9,8 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.rmi.ServerException;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -30,19 +30,14 @@ public class Client {
     private static final String SERVER_HOST = "localhost";
 
     /**
-     * 读缓冲大小1024 * 1024 (1MiB)
+     * 读缓冲大小1024 (1KiB)
      */
-    private static final int BUFFER_CAPACITY = 1 << 20;
+    private static final int BUFFER_CAPACITY = 1 << 10;
 
     /**
      * 读字节缓冲
      */
     private static final ByteBuffer READ_BUFFER = ByteBuffer.allocate(BUFFER_CAPACITY);
-
-    /**
-     * 测试通道数据是否溢出的字节缓冲
-     */
-    private static final ByteBuffer READ_OVERFLOW_BUFFER = ByteBuffer.allocate(1);
 
     /**
      * 选择器
@@ -74,7 +69,10 @@ public class Client {
             client.configureBlocking(false);
             client.register(selector, SelectionKey.OP_READ);
 
-            writeMessageToServer();
+            // 发送消息到服务端
+            socketChannel.write(ByteBuffer.wrap("我是客户端".getBytes()));
+
+            // 监听可读事件
             readServerMessage();
         }
     }
@@ -92,8 +90,7 @@ public class Client {
             for (SelectionKey selectionKey : selectionKeys) {
                 if (selectionKey.isValid() && selectionKey.isReadable()) {
                     try {
-                        ByteBuffer response = readBuffer();
-                        log.info("来自服务端[{}:{}]的消息: {}", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort(), StandardCharsets.UTF_8.decode(response));
+                        Optional.ofNullable(simpleDecode()).ifPresent(byteBuffer -> log.info("来自服务端{}的消息: {}", serverAddress(), StandardCharsets.UTF_8.decode(byteBuffer)));
                     } catch (Exception e) {
                         log.error(e.getMessage(), e);
                     } finally {
@@ -106,42 +103,35 @@ public class Client {
         }
     }
 
-
     /**
-     * 发送消息到服务端
-     */
-    private void writeMessageToServer() throws IOException {
-        socketChannel.write(ByteBuffer.wrap("我是客户端".getBytes()));
-    }
-
-    /**
-     * 从socket通道中读取信息到字节缓冲中
+     * 从SocketChannel中读取信息到字节缓冲中
      *
-     * @return 请求的数据
+     * @return 响应的数据
      * @throws IOException io异常
      */
-    private ByteBuffer readBuffer() throws IOException {
+    private ByteBuffer simpleDecode() throws IOException {
         try {
+
+            // 如果服务端由于断网等原因造成的关闭，那么read方法会抛出一个IOException而不是返回-1。
+            // 只有服务端主动调用socketChannel.close()方法read方法才会返回-1。
             int read = socketChannel.read(READ_BUFFER);
-            // 通道已关闭
+
+            // 客户端通道已关闭
             if (read == -1) {
+                log.info(String.format("服务端%s已关闭", serverAddress()));
                 socketChannel.close();
-                System.exit(0);
+                return null;
             }
-            // 未读满缓冲区
-            if (read < READ_BUFFER.limit()) {
-                return ByteBuffer.wrap(Arrays.copyOfRange(READ_BUFFER.array(), 0, READ_BUFFER.position()));
-            }
-            // 通道中还有数据未读
-            if (socketChannel.read(READ_OVERFLOW_BUFFER) > 0) {
-                throw new ServerException("响应数据太大");
-            }
-            // 刚好读满缓冲区
             return ByteBuffer.wrap(Arrays.copyOfRange(READ_BUFFER.array(), 0, READ_BUFFER.position()));
         } finally {
             READ_BUFFER.clear();
-            READ_OVERFLOW_BUFFER.clear();
         }
+    }
 
+    /**
+     * @return 服务端地址信息
+     */
+    public String serverAddress() {
+        return String.format("[%s:%s]", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
     }
 }
