@@ -3,11 +3,7 @@ package red.zyc.socket.bio.server;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.time.LocalDateTime;
@@ -26,64 +22,15 @@ public class Connection {
 
     private final Socket socket;
 
-    /**
-     * 当前socket通道的网络地址
-     */
     private final InetSocketAddress inetSocketAddress;
-
-    /**
-     * socket关闭时read方法返回-1，socket没有关闭但是没有数据时read方法会阻塞当前线程直到
-     * 流里面有数据为止。
-     */
-    private final BufferedReader reader;
-
-    private final BufferedWriter writer;
 
     private final LocalDateTime createdTime;
 
-    public Connection(Socket socket) throws IOException {
+    public Connection(Socket socket) {
         this.id = UUID.randomUUID().toString();
         this.socket = socket;
         this.inetSocketAddress = (InetSocketAddress) socket.getRemoteSocketAddress();
-        this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
         this.createdTime = LocalDateTime.now();
-    }
-
-    /**
-     * 读客户端发送过来的消息
-     */
-    public void readData() {
-        try {
-            String line;
-            // readLine会阻塞直到读到一个换行符为止，返回null代表socket关闭了
-            if ((line = reader.readLine()) != null) {
-                log.info("来自客户端[{}:{}]的消息: {}", socket.getInetAddress().getHostAddress(), socket.getPort(), line);
-            }
-        } catch (Exception e) {
-            throw new ServerException(e);
-        }
-    }
-
-    /**
-     * 将消息发送给客户端
-     *
-     * @param message 消息
-     */
-    public void writeData(String message) {
-        try {
-
-            writer.write(message);
-
-            // 写入一个换行符以便客户端能够识别一行数据，避免另一端read方法一直阻塞
-            writer.newLine();
-
-            // 将writer缓冲区的数据立即刷新发送出去，否则必须等到缓冲满了才会发送
-            writer.flush();
-
-        } catch (Exception e) {
-            throw new ServerException(e);
-        }
     }
 
     /**
@@ -95,6 +42,13 @@ public class Connection {
         } catch (IOException e) {
             log.error(e.getMessage(), e);
         }
+    }
+
+    /**
+     * @return 客户端地址信息
+     */
+    public String clientAddress() {
+        return String.format("[%s:%s]", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
     }
 
     /**

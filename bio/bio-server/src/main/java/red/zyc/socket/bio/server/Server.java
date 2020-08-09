@@ -27,7 +27,7 @@ public class Server {
     /**
      * 处理每个客户端连接的线程池
      */
-    private final ExecutorService consumer = new ThreadPoolExecutor(3, 3, 0, TimeUnit.SECONDS, new SynchronousQueue<>(), Executors.defaultThreadFactory(), new RejectedSocketConnectionHandler());
+    private final ExecutorService consumer = new ThreadPoolExecutor(100, 100, 0, TimeUnit.SECONDS, new SynchronousQueue<>(), Executors.defaultThreadFactory(), new RejectedSocketConnectionHandler());
 
     /**
      * 服务端socket
@@ -39,8 +39,7 @@ public class Server {
      * bio就是阻塞io也就是java.io包下的各种流。这些流在读数据的时候如果读不到数据就会阻塞当前线程，
      * 因此在一个socket连接建立即请求来临时为了不阻塞main线程从中读取数据我们必须对每一个socket
      * 连接都开启一个线程，这种io模型的好处是在连接数较小时有比较好的性能，一个线程对应一个socket读写任务，代码编写也比较简单。
-     * 不好之处在于如果有大量连接同时建立时我们不可能无限制的新建线程，我们就必须要使用线程池来管理线程，并且每一个线程都是很宝贵的系统资源，线程之间上下文的切换
-     * 也是需要耗时的。如果此刻线程池中的线程都在运作中，任务都堆积到任务队列中去了，那么接下来的请求势必都会被阻塞，因此对于海量的tcp连接这种io模型是无能为力的。
+     * 不好之处在于如果有大量连接同时建立时我们不可能无限制的新建线程，我们就必须要使用固定大小的线程池来管理线程，因此对于海量的tcp连接这种io模型是无能为力的。
      *
      * @param args 参数
      * @throws IOException io异常
