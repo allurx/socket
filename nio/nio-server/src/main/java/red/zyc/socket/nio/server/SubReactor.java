@@ -14,7 +14,7 @@ import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +35,7 @@ public class SubReactor implements Runnable {
     /**
      * 处理业务逻辑的线程池
      */
-    private static final ThreadPoolExecutor PROCESS_EXECUTOR = new ThreadPoolExecutor(100, 100, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), new NamedThreadFactory("Process"), new RejectedRequestHandler());
+    private static final ThreadPoolExecutor PROCESS_EXECUTOR = new ThreadPoolExecutor(100, 100, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>(1000), new NamedThreadFactory("Process"), new RejectedRequestHandler());
 
     /**
      * 读取请求数据的字节缓冲对象，对于同一个SubReactor来说每个Connection的按顺序读的，所以该对象是可以复用的。
