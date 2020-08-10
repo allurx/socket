@@ -52,11 +52,10 @@ public class SubReactor implements Runnable {
      */
     private Selector selector;
 
-
     @Override
     public void run() {
-        try (Selector selector = Selector.open()) {
-            this.selector = selector;
+        try (Selector s = Selector.open()) {
+            this.selector = s;
             eventLoop();
         } catch (Exception e) {
             throw new ServerException("SubReactor的Selector打开失败", e);
