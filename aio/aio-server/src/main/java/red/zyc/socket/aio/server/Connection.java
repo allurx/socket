@@ -10,6 +10,7 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -63,6 +64,11 @@ public class Connection implements CompletionHandler<Integer, Integer> {
     private final AsynchronousSocketChannel socketChannel;
 
     /**
+     * 连接创建时间
+     */
+    private final LocalDateTime createdTime;
+
+    /**
      * 请求数据，当前线程读取请求成功能够立马对业务线程可见
      */
     private volatile ByteBuffer request;
@@ -75,6 +81,7 @@ public class Connection implements CompletionHandler<Integer, Integer> {
     public Connection(AsynchronousSocketChannel socketChannel) {
         this.id = UUID.randomUUID().toString();
         this.socketChannel = socketChannel;
+        this.createdTime = LocalDateTime.now();
     }
 
     /**

@@ -9,6 +9,8 @@ import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 
 /**
+ * 用来接收SocketChannel接收器
+ *
  * @author zyc
  */
 @Slf4j
@@ -26,8 +28,12 @@ public class Acceptor implements CompletionHandler<AsynchronousSocketChannel, As
 
     @Override
     public void completed(AsynchronousSocketChannel client, AsynchronousServerSocketChannel server) {
-        server.accept(server, this);
+
+        // 接收到SocketChannel后将其包装成Connection进行读写交替直到通道关闭，注意read、write都是异步执行的
         new Connection(client).read();
+
+        // 递归accept下一个SocketChannel
+        server.accept(server, this);
     }
 
     @Override

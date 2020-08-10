@@ -43,22 +43,30 @@ public class SubReactor implements Runnable {
     private final ByteBuffer readBuffer = ByteBuffer.allocate(BUFFER_CAPACITY);
 
     /**
-     * 与此reactor关联的选择器
-     */
-    private final Selector selector;
-
-    /**
      * 当前的SubReactor处理的所有连接。按照FIFO方式处理连接。新增连接是往队列尾部插入元素，注册连接是从头部移除元素，这两者时间复杂度都是O(1)。
      */
     private final Deque<Connection> connections = new LinkedList<>();
 
+    /**
+     * 与此SubReactor关联的选择器
+     */
+    private Selector selector;
 
-    public SubReactor() throws IOException {
-        this.selector = Selector.open();
-    }
 
     @Override
     public void run() {
+        try (Selector selector = Selector.open()) {
+            this.selector = selector;
+            eventLoop();
+        } catch (Exception e) {
+            throw new ServerException("SubReactor的Selector打开失败", e);
+        }
+    }
+
+    /**
+     * 轮询io事件
+     */
+    private void eventLoop() {
         while (!Thread.interrupted()) {
             try {
 
@@ -99,6 +107,7 @@ public class SubReactor implements Runnable {
      */
     public void receiveConnection(SocketChannel socketChannel) throws IOException {
         connections.addLast(new Connection(socketChannel));
+
         // 唤醒阻塞在select方法上SubReactor线程或者使下一次select方法直接返回，然后注册队列中的所有SocketChannel并监听其io事件
         selector.wakeup();
     }

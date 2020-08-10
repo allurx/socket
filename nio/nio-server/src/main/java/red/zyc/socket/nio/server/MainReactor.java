@@ -8,11 +8,13 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 /**
  * MainReactor只关心SocketChannel能够获取事件
@@ -35,10 +37,10 @@ public class MainReactor {
     /**
      * SubReactors
      */
-    private static final SubReactor[] SUB_REACTORS = new SubReactor[SUB_REACTOR_NUM];
+    private static final SubReactor[] SUB_REACTORS = IntStream.range(0, SUB_REACTOR_NUM).mapToObj(i -> new SubReactor()).toArray(SubReactor[]::new);
 
     /**
-     * SubReactor线程池，该线程池只会在{@link #initSubReactors 初始化时}执行{@link #SUB_REACTORS}中的所有任务，多余的任务将会被抛弃。
+     * SubReactor线程池
      */
     private static final ExecutorService SUB_REACTORS_EVENT_LOOP = new ThreadPoolExecutor(SUB_REACTOR_NUM, SUB_REACTOR_NUM, 0, TimeUnit.SECONDS, new SynchronousQueue<>(), new NamedThreadFactory("SubReactor"), new ThreadPoolExecutor.DiscardPolicy());
 
@@ -73,9 +75,10 @@ public class MainReactor {
      * @throws IOException io异常
      */
     public static void main(String[] args) throws IOException {
-        try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
+        try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+             Selector selector = Selector.open()) {
 
-            selector = Selector.open();
+            MainReactor.selector = selector;
 
             // 监听本地端口
             serverSocketChannel.bind(new InetSocketAddress(LISTEN));
@@ -89,8 +92,8 @@ public class MainReactor {
 
             Thread.currentThread().setName("MainReactor");
 
-            // 初始化SubReactor
-            initSubReactors();
+            // 启动所有SubReactor
+            Arrays.stream(SUB_REACTORS).forEach(SUB_REACTORS_EVENT_LOOP::execute);
 
             // 监听客户端连接
             accept();
@@ -116,9 +119,7 @@ public class MainReactor {
                 Set<SelectionKey> selectionKeys = selector.selectedKeys();
 
                 // 遍历所有准备就绪的SelectionKey
-                for (SelectionKey selectionKey : selectionKeys) {
-                    transferSocketChannel(selectionKey);
-                }
+                selectionKeys.forEach(MainReactor::transferSocketChannel);
 
                 // 清除所有selectionKey，否则下一次select返回的selectedKeys就会包含这一次的selectedKeys，
                 selectionKeys.clear();
@@ -126,7 +127,6 @@ public class MainReactor {
                 throw new ServerException(e);
             }
         }
-
     }
 
     /**
@@ -159,18 +159,6 @@ public class MainReactor {
             nextReactor = 0;
         }
         return SUB_REACTORS[nextReactor++];
-    }
-
-    /**
-     * 初始化并执行SubReactor
-     *
-     * @throws IOException io异常
-     */
-    private static void initSubReactors() throws IOException {
-        for (int i = 0; i < SUB_REACTORS.length; i++) {
-            SUB_REACTORS[i] = new SubReactor();
-            SUB_REACTORS_EVENT_LOOP.execute(SUB_REACTORS[i]);
-        }
     }
 
 }
