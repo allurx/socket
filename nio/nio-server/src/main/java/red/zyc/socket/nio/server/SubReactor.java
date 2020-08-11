@@ -221,6 +221,8 @@ public class SubReactor implements Runnable {
             // SubReactor再调用这个注册方法将队列的连接都注册到自己的selector中。
             SelectionKey register = socketChannel.register(selector, SelectionKey.OP_READ, connection);
             connection.setSelectionKey(register);
+
+            // 再次尝试注册队列中的连接
             register();
         }
     }
