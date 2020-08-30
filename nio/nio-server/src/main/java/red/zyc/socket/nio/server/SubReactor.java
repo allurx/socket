@@ -52,27 +52,18 @@ public class SubReactor implements Runnable {
      */
     private Selector selector;
 
-    @Override
-    public void run() {
-        try (Selector s = Selector.open()) {
-            this.selector = s;
-            eventLoop();
-        } catch (Exception e) {
-            throw new ServerException("SubReactor的Selector打开失败", e);
-        }
-    }
-
     /**
      * 轮询io事件
      */
-    private void eventLoop() {
-        while (!Thread.interrupted()) {
-            try {
+    @Override
+    public void run() {
+        try (Selector s = this.selector = Selector.open()) {
+            while (!Thread.interrupted()) {
 
                 // 阻塞直到有一个已注册的通道上有满足条件的事件就绪，或者selector的wakeup方法被调用或者当前线程被中断。
                 // 方法返回的int值表示有io事件准备就绪的所有已注册的SelectionKey。注意如果没有把上一次select返回的selectedKeys移除掉，
                 // 那么下一次循环select方法返回的selectedKeys就会包含上一次的selectedKeys，这是一个坑一定要在迭代结束后移除已处理的SelectionKey
-                int select = selector.select();
+                int select = s.select();
 
                 // 注册MainReactor传递的SocketChannel
                 register();
@@ -82,7 +73,7 @@ public class SubReactor implements Runnable {
                 }
 
                 // 当前选择器中所有符合事件的选择键
-                Set<SelectionKey> selectionKeys = selector.selectedKeys();
+                Set<SelectionKey> selectionKeys = s.selectedKeys();
 
                 // 遍历所有准备就绪的SelectionKey
                 for (SelectionKey selectionKey : selectionKeys) {
@@ -90,10 +81,9 @@ public class SubReactor implements Runnable {
                 }
                 // 清除所有selectionKey，否则下一次select返回的selectedKeys就会包含这一次的selectedKeys，
                 selectionKeys.clear();
-
-            } catch (Exception e) {
-                throw new ServerException(e);
             }
+        } catch (Exception e) {
+            throw new ServerException(e);
         }
     }
 
@@ -132,7 +122,7 @@ public class SubReactor implements Runnable {
             }
             // 一次读写ByteBuffer产生的异常不应该停止事件轮询
         } catch (Exception e) {
-            // 读写SocketChannel数据发生异常时，将其从selector的注册中取消，不在关注其任何io事件。
+            // 读写SocketChannel数据发生异常时，将其从selector的注册中取消，不再关注其任何io事件。
             selectionKey.cancel();
             log.error(e.getMessage(), e);
         }
