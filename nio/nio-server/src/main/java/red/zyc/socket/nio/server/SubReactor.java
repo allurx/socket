@@ -19,7 +19,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * SubReactor只处理SocketChannel的读写事件
+ * SubReactor只处理SocketChannel的read/write事件
  *
  * @author zyc
  */

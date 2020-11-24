@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 /**
- * MainReactor只处理SocketChannel的获取事件
+ * MainReactor只处理SocketChannel的Accept事件
  *
  * @author zyc
  */
