@@ -95,6 +95,7 @@ public class SubReactor implements Runnable {
      * @throws IOException io异常
      */
     public void receiveConnection(SocketChannel socketChannel) throws IOException {
+
         connections.addLast(new Connection(socketChannel));
 
         // 唤醒阻塞在select方法上SubReactor线程或者使下一次select方法直接返回，然后注册队列中的所有SocketChannel并监听其io事件
@@ -139,6 +140,7 @@ public class SubReactor implements Runnable {
         // SubReactor线程读一次请求数据，然后将读到的数据传递给业务线程池执行，此刻读通常情况下是不会阻塞的，
         // 因为此刻SocketChannel是可读的，是能够立马从tcp缓存区读取数据到用户空间中。
         Optional.ofNullable(simpleDecode(connection)).ifPresent(byteBuffer -> {
+
             connection.setRequest(byteBuffer);
 
             // 请求数据读完之后提交到业务线程池中执行
@@ -152,6 +154,7 @@ public class SubReactor implements Runnable {
      * @param selectionKey SocketChannel关联的选择键
      */
     private void handleWriteEvent(SelectionKey selectionKey) throws IOException {
+
         Connection connection = (Connection) selectionKey.attachment();
         SocketChannel socketChannel = connection.getSocketChannel();
         socketChannel.write(connection.getResponse());
