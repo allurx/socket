@@ -15,8 +15,9 @@
     <packaging>pom</packaging>
 
     <properties>
-        <lombok.version>1.18.12</lombok.version>
-        <logback.version>1.2.3</logback.version>
+        <lombok.version>1.18.26</lombok.version>
+        <logback.version>1.4.7</logback.version>
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -32,5 +33,19 @@
             <version>${logback.version}</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
