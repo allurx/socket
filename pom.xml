@@ -16,7 +16,7 @@
 
     <properties>
         <lombok.version>1.18.26</lombok.version>
-        <logback.version>1.4.7</logback.version>
+        <logback.version>1.4.12</logback.version>
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
